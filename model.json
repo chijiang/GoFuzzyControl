@@ -9,7 +9,7 @@
         "orMethod": "max",
         "impMethod": "min",
         "aggMethod": "max",
-        "defuzzMethod": "bisector"
+        "defuzzMethod": "centroid"
     },
     "input": [
         {

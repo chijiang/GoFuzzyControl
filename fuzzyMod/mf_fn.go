@@ -202,6 +202,14 @@ func Zmf(x float64, params []float64) float64 {
 	return 1
 }
 
+// Calculating the membership for specific type of membership function.
+//
+//	@Params: mf_type - a string describe the type/form of the
+//			 membership function.
+//			 params - the parameters for the membership function.
+//			 x - input value, whose membership is checked.
+//	@Return: 1. - result for the calculation
+//			 2. - error occured during the calculation
 func CalculateMf(mf_type string, params []float64, x float64) (float64, error) {
 	switch strings.ToLower(mf_type) {
 	case "dsigmf":
