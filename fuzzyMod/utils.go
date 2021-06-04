@@ -5,10 +5,10 @@ import (
 	"math"
 )
 
-func Aggr(
+func aggr(
 	start float64,
 	end float64,
-	resolution float64,
+	resolution int,
 	mfs []func(float64) float64,
 	cap []float64,
 	impMethod string,
@@ -16,14 +16,15 @@ func Aggr(
 	if end <= start {
 		return nil, nil, errors.New("start value should be smaller than end value")
 	}
-	if resolution > end-start {
-		return nil, nil, errors.New("resolution too large for the range")
+	if resolution <= 1 {
+		return nil, nil, errors.New("resolution should be an integer greater equals to 1")
 	}
 	var (
 		x []float64
 		y []float64
 	)
-	for i := start; i <= end; i += resolution {
+	step_length := (end - start) / float64(resolution)
+	for i := start; i <= end; i += step_length {
 		x = append(x, i)
 	}
 	var (

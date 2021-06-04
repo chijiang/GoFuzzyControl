@@ -202,6 +202,10 @@ func Zmf(x float64, params []float64) float64 {
 	return 1
 }
 
+func Constant(x float64) float64 {
+	return x
+}
+
 // !!Deprecated!!: Calculating the membership for specific type of membership function.
 //
 //	@Params: mf_type - a string describe the type/form of the

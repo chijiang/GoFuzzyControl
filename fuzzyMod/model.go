@@ -2,6 +2,7 @@ package fuzzy
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"math"
@@ -18,6 +19,7 @@ type fuzzyController struct {
 	aggY      [][]float64
 	andFn     func(float64, float64) float64
 	orFn      func(float64, float64) float64
+	result    []float64
 }
 type config struct {
 	Name         string `json:"name"`
@@ -91,23 +93,25 @@ func NewFuzzyController(jsonStr string) (fuzzyController, error) {
 
 	// Creating the `and`/`or` functions according to the json
 	// config string. Return error if not recognizable.
-	if fc.System.Andmethod == "max" {
-		fc.andFn = math.Max
+	if fc.System.Andmethod == "prod" {
+		fc.andFn = func(x float64, y float64) float64 { return x * y }
 	} else if fc.System.Andmethod == "min" {
 		fc.andFn = math.Min
 	} else {
 		return fc, fmt.Errorf(
-			`error by "and" method, only "min" or "max" are acceptable, got %v`,
+			`error by "and" method, only "min" or "prod" are acceptable, got %v`,
 			fc.System.Andmethod,
 		)
 	} // AND function
-	if fc.System.Ormethod == "min" {
-		fc.orFn = math.Min
+	if fc.System.Ormethod == "probor" {
+		fc.orFn = func(x float64, y float64) float64 { return x + y - x*y }
 	} else if fc.System.Ormethod == "max" {
 		fc.orFn = math.Max
+	} else if fc.System.Ormethod == "sum" {
+		fc.orFn = func(x float64, y float64) float64 { return x + y }
 	} else {
 		return fc, fmt.Errorf(
-			`error by "or" method, only "min" or "max" are acceptable, got %v`,
+			`error by "or" method, only "probor", "sum" or "max" are acceptable, got %v`,
 			fc.System.Ormethod,
 		)
 	} // OR function
@@ -163,69 +167,17 @@ func (fc *fuzzyController) SetInputs(inputs []float64) error {
 // the outputs. It is necessary to determine the combination
 // methods ("implementation" and "aggregation") in advance.
 // Considering that the number of output could be greater than
-// 1, the "start", "end", "resolution" parameters are passed in
-// in form of float64 arrays. Make sure that the position for
-// all three arrays are matched.
+// 1, the "resolution" parameters are passed in in form of float64
+// arrays. Make sure that the position for all three arrays
+// are matched.
 //
-//	@Params: start - where the output aggregation curves
-//			 should start (x values)
-//
-//			 end - where the output aggregation curves
-//			 should end (x values)
-//
-//			 resolution - the "step size" for x values of the curves
+//	@Params: resolution - the "step size" for x values of the curves
 //
 //	@Return: error occurred during the aggregation.
-func (fc *fuzzyController) Aggregation(start []float64, end []float64, resolution []float64) error {
-	// The container to store the cap value of the output membership.
-	caps := make([]map[string]float64, fc.System.Numoutputs)
-	// Initializing the elements in the array.
-	for i := range caps {
-		caps[i] = make(map[string]float64)
-	}
-
-	// For all the rules of the fuzzyController:
-	for _, r := range fc.Rules {
-		var res float64
-		// distinguish the conjunction method. "and" or "or"
-		if r.Conjunction == "and" {
-			// if function is max: res init as 0.0
-			// if function is min: res init as 1.0
-			res = 1.0 - fc.andFn(1.0, 0.0)
-			for i, v := range r.Antecedent {
-				// update the res with logical calculation.
-				res = fc.andFn(res, fc.input_mbr[i][v])
-			}
-		} else if r.Conjunction == "or" {
-			// if function is max: res init as 0.0
-			// if function is min: res init as 1.0
-			res = 1.0 - fc.orFn(1.0, 0.0)
-			for i, v := range r.Antecedent {
-				// update the res with logical calculation.
-				res = fc.orFn(res, fc.input_mbr[i][v])
-			}
-		} else {
-			// if unrecognizable option occurred.
-			return fmt.Errorf(
-				`found in valid conjunction function: "and" or "or" expected, got %v `,
-				r.Conjunction,
-			)
-		}
-
-		// Now we have got the cap value for the current output membership function.
-		// The next thing to do is to store the value into a map so we can
-		// easily search it with hash key. Remeber that we could have multiple
-		// outputs, but the cap value should be identical for each outputs (with the
-		// same conjunction method, and probably different label).
-		for i := range caps {
-			if _, ok := caps[i][r.Consequent[i]]; !ok {
-				caps[i][r.Consequent[i]] = res
-			} else if fc.System.Impmethod == "max" {
-				caps[i][r.Consequent[i]] = math.Max(caps[i][r.Consequent[i]], res)
-			} else {
-				caps[i][r.Consequent[i]] = math.Min(caps[i][r.Consequent[i]], res)
-			}
-		}
+func (fc *fuzzyController) AggregateMamdani(resolution []int) error {
+	caps, err := fc.getCaps()
+	if err != nil {
+		return err
 	}
 	// The cap values are implemented to the total membership values of the outputs.
 	for i, v := range caps {
@@ -249,9 +201,8 @@ func (fc *fuzzyController) Aggregation(start []float64, end []float64, resolutio
 			cap = append(cap, value)
 		}
 		// Calculating the aggregation function
-		// **** !!!!Result might be incorrect!!!! ****
-		a, b, err := Aggr(
-			start[i], end[i], resolution[i],
+		a, b, err := aggr(
+			fc.Outputs[i].Range[0], fc.Outputs[i].Range[1], resolution[i],
 			mfs, cap,
 			fc.System.Impmethod, fc.System.Aggmethod,
 		)
@@ -265,44 +216,152 @@ func (fc *fuzzyController) Aggregation(start []float64, end []float64, resolutio
 	return nil
 }
 
-func (fc *fuzzyController) GetResult() []float64 {
-	ret := make([]float64, fc.System.Numoutputs)
-	for i := range fc.aggX {
-		defuzz := 0.
-
-		switch strings.ToLower(fc.System.Defuzzmethod) {
-		case "centroid":
-			cenPoint, err := Centroid(fc.aggX[i], fc.aggY[i])
-			if err != nil {
-				log.Fatal(err)
-			}
-			defuzz = cenPoint
-		case "bisector":
-			biPoint, err := Bisector(fc.aggX[i], fc.aggY[i])
-			if err != nil {
-				log.Fatal(err)
-			}
-			defuzz = biPoint
-		case "MOM":
-			biPoint, err := MOMdefuzz(fc.aggX[i], fc.aggY[i])
-			if err != nil {
-				log.Fatal(err)
-			}
-			defuzz = biPoint
-		case "SOM":
-			biPoint, err := SOMdefuzz(fc.aggX[i], fc.aggY[i])
-			if err != nil {
-				log.Fatal(err)
-			}
-			defuzz = biPoint
-		case "LOM":
-			biPoint, err := LOMdefuzz(fc.aggX[i], fc.aggY[i])
-			if err != nil {
-				log.Fatal(err)
-			}
-			defuzz = biPoint
-		}
-		ret[i] = defuzz
+func (fc *fuzzyController) AggregateSugeno() error {
+	caps, err := fc.getCaps()
+	if err != nil {
+		return err
 	}
-	return ret
+	var rst []float64
+	// The cap values are implemented to the total membership values of the outputs.
+	for i, v := range caps {
+		sum, den := 0., 0.
+		// v : map["consequent"] -> cap value
+		// CAUTION: Traverse order uncertain
+		for key, value := range v {
+			sum += fc.Outputs[i].Mf_list[key].Params[0] * value
+			den += value
+		}
+		if fc.System.Defuzzmethod == "wtaver" {
+			rst = append(rst, sum/den)
+		} else if fc.System.Defuzzmethod == "wtsum" {
+			rst = append(rst, sum)
+		}
+	}
+	fc.result = rst
+	return nil
+}
+
+// Calculate the fuzzy
+//
+//	@Params: start - where the output aggregation curves
+//			 should start (x values)
+//
+//			 end - where the output aggregation curves
+//			 should end (x values)
+//
+//			 resolution - the "step size" for x values of the curves
+//
+//	@Return: error occurred during the aggregation.
+func (fc *fuzzyController) GetResult() ([]float64, error) {
+	if fc.System.Method == "mamdani" {
+		ret := make([]float64, fc.System.Numoutputs)
+		for i := range fc.aggX {
+			defuzz := 0.
+
+			switch strings.ToLower(fc.System.Defuzzmethod) {
+			case "centroid":
+				cenPoint, err := Centroid(fc.aggX[i], fc.aggY[i])
+				if err != nil {
+					log.Fatal(err)
+				}
+				defuzz = cenPoint
+			case "bisector":
+				biPoint, err := Bisector(fc.aggX[i], fc.aggY[i])
+				if err != nil {
+					log.Fatal(err)
+				}
+				defuzz = biPoint
+			case "MOM":
+				biPoint, err := MOMdefuzz(fc.aggX[i], fc.aggY[i])
+				if err != nil {
+					log.Fatal(err)
+				}
+				defuzz = biPoint
+			case "SOM":
+				biPoint, err := SOMdefuzz(fc.aggX[i], fc.aggY[i])
+				if err != nil {
+					log.Fatal(err)
+				}
+				defuzz = biPoint
+			case "LOM":
+				biPoint, err := LOMdefuzz(fc.aggX[i], fc.aggY[i])
+				if err != nil {
+					log.Fatal(err)
+				}
+				defuzz = biPoint
+			}
+			ret[i] = defuzz
+		}
+		fc.result = ret
+		return ret, nil
+	} else if fc.System.Method == "sugeno" {
+		return fc.result, nil
+	} else {
+		return nil, errors.New(`uncertain fuzzy method, currently only "mamdani" and "sugeno" are supported`)
+	}
+}
+
+func (fc *fuzzyController) getCaps() ([]map[string]float64, error) {
+	// The container to store the cap value of the output membership.
+	caps := make([]map[string]float64, fc.System.Numoutputs)
+	// Initializing the elements in the array.
+	for i := range caps {
+		caps[i] = make(map[string]float64)
+	}
+
+	// For all the rules of the fuzzyController:
+	for _, r := range fc.Rules {
+		var res float64
+		// distinguish the conjunction method.
+		if r.Conjunction == "and" {
+			// if function is min: res init as 1.0
+			// if function is prod: res init as 1.0
+			res = 1.0 - fc.andFn(1.0, 0.0)
+			for i, v := range r.Antecedent {
+				// update the res with logical calculation.
+				res = fc.andFn(res, fc.input_mbr[i][v])
+			}
+		} else if r.Conjunction == "or" {
+			// if function is max: res init as 0.0
+			// if function is sum: res init as 0.0
+			// if function is probor: res init as 0.0
+			res = 1.0 - fc.orFn(1.0, 0.0)
+			for i, v := range r.Antecedent {
+				// update the res with logical calculation.
+				res = fc.orFn(res, fc.input_mbr[i][v])
+			}
+		} else {
+			// if unrecognizable option occurred.
+			return caps, fmt.Errorf(
+				`found in valid conjunction function: "and" or "or" expected, got %v `,
+				r.Conjunction,
+			)
+		}
+
+		// Now we have got the cap value for the current output membership function.
+		// The next thing to do is to store the value into a map so we can
+		// easily search it with hash key. Remeber that we could have multiple
+		// outputs, but the cap value should be identical for each outputs (with the
+		// same conjunction method, and probably different label).
+		if fc.System.Method == "sugeno" {
+			for i := range caps {
+				if _, ok := caps[i][r.Consequent[i]]; !ok {
+					caps[i][r.Consequent[i]] = res
+				} else {
+					caps[i][r.Consequent[i]] += res
+				}
+			}
+		} else {
+			for i := range caps {
+				if _, ok := caps[i][r.Consequent[i]]; !ok {
+					caps[i][r.Consequent[i]] = res
+				} else if fc.System.Impmethod == "max" {
+					caps[i][r.Consequent[i]] = math.Max(caps[i][r.Consequent[i]], res)
+				} else {
+					caps[i][r.Consequent[i]] = math.Min(caps[i][r.Consequent[i]], res)
+				}
+			}
+		}
+	}
+	return caps, nil
 }

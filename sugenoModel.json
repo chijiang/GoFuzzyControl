@@ -1,15 +1,15 @@
 {
     "system": {
         "name": "fuzzyModel",
-        "method": "mamdani",
+        "method": "sugeno",
         "numInputs": 2,
         "numOutputs": 1,
         "numRules": 4,
         "andMethod": "min",
         "orMethod": "max",
-        "impMethod": "min",
-        "aggMethod": "max",
-        "defuzzMethod": "centroid"
+        "impMethod": "prod",
+        "aggMethod": "sum",
+        "defuzzMethod": "wtaver"
     },
     "input": [
         {
@@ -92,29 +92,23 @@
             "mf": [
                 {
                     "label": "ZO",
-                    "type": "trimf",
+                    "type": "constant",
                     "params": [
-                        -10.0,
-                        0.0,
-                        17.1
+                        2.3676
                     ]
                 },
                 {
                     "label": "NS",
-                    "type": "trapmf",
+                    "type": "constant",
                     "params": [
-                        -5.0,
-                        5.0,
-                        10.1,
-                        15.2
+                        6.0788
                     ]
                 },
                 {
                     "label": "PS",
-                    "type": "smf",
+                    "type": "constant",
                     "params": [
-                        12.2,
-                        20.1
+                        17.8524
                     ]
                 }
             ]
