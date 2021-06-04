@@ -3,45 +3,7 @@ package fuzzy
 import (
 	"errors"
 	"math"
-	"strings"
 )
-
-func Bisector(x []float64, y []float64) (float64, error) {
-	if len(x) != len(y) {
-		return 0., errors.New("length of arrays not equal")
-	}
-	area := 0.
-	var integration []float64
-	for i, v := range y {
-		delta_x := 0.
-		if i == 0 {
-			delta_x = x[i+1] - x[i]
-		} else {
-			delta_x = x[i] - x[i-1]
-		}
-		area += v * delta_x
-		integration = append(integration, area)
-	}
-	for i, v := range integration {
-		if v >= area*0.5 {
-			return x[i], nil
-		}
-	}
-	return 0, errors.New("area calculation failed")
-}
-
-func Centroid(x []float64, y []float64) (float64, error) {
-	if len(x) != len(y) {
-		return 0., errors.New("length of arrays not equal")
-	}
-	mass := 0.
-	den := 0.
-	for i := range x {
-		mass += x[i] * y[i]
-		den += y[i]
-	}
-	return mass / den, nil
-}
 
 func Aggr(
 	start float64,
@@ -85,55 +47,4 @@ func Aggr(
 		}
 	}
 	return x, y, nil
-}
-
-func MemberFuncWrapper(fn_name string, args []float64) func(float64) float64 {
-	switch strings.ToLower(fn_name) {
-	case "dsigmf":
-		return func(x float64) float64 {
-			return Dsigmf(x, args)
-		}
-	case "sigmf":
-		return func(x float64) float64 {
-			return Sigmf(x, args)
-		}
-	case "gaussmf":
-		return func(x float64) float64 {
-			return Gaussmf(x, args)
-		}
-	case "gauss2mf":
-		return func(x float64) float64 {
-			return Gauss2mf(x, args)
-		}
-	case "gbellmf":
-		return func(x float64) float64 {
-			return Gbellmf(x, args)
-		}
-	case "pimf":
-		return func(x float64) float64 {
-			return Pimf(x, args)
-		}
-	case "psigmf":
-		return func(x float64) float64 {
-			return Psigmf(x, args)
-		}
-	case "smf":
-		return func(x float64) float64 {
-			return Smf(x, args)
-		}
-	case "trapmf":
-		return func(x float64) float64 {
-			return Trapmf(x, args)
-		}
-	case "trimf":
-		return func(x float64) float64 {
-			return Trimf(x, args)
-		}
-	case "zmf":
-		return func(x float64) float64 {
-			return Zmf(x, args)
-		}
-	default:
-		return nil
-	}
 }

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"math"
+	"strings"
 )
 
 type fuzzyController struct {
@@ -141,10 +142,11 @@ func (fc *fuzzyController) SetInputs(inputs []float64) error {
 		// Calculate the memberships for every input value.
 		mbr := make(map[string]float64)
 		for _, mf := range fc.Inputs[i].Mf { // mf - MbrFns for current input.
-			res, err := CalculateMf(mf.Type, mf.Params, value)
+			fn, err := MemberFuncWrapper(mf.Type, mf.Params)
 			if err != nil {
 				return err
 			}
+			res := fn(value)
 			// Save result to a map.
 			mbr[mf.Label] = res
 		}
@@ -163,7 +165,7 @@ func (fc *fuzzyController) SetInputs(inputs []float64) error {
 // Considering that the number of output could be greater than
 // 1, the "start", "end", "resolution" parameters are passed in
 // in form of float64 arrays. Make sure that the position for
-// all three arraies are matched.
+// all three arrays are matched.
 //
 //	@Params: start - where the output aggregation curves
 //			 should start (x values)
@@ -211,7 +213,7 @@ func (fc *fuzzyController) Aggregation(start []float64, end []float64, resolutio
 		}
 
 		// Now we have got the cap value for the current output membership function.
-		// The next thing to do is to store the value with a map so we can
+		// The next thing to do is to store the value into a map so we can
 		// easily search it with hash key. Remeber that we could have multiple
 		// outputs, but the cap value should be identical for each outputs (with the
 		// same conjunction method, and probably different label).
@@ -225,19 +227,29 @@ func (fc *fuzzyController) Aggregation(start []float64, end []float64, resolutio
 			}
 		}
 	}
+	// The cap values are implemented to the total membership values of the outputs.
 	for i, v := range caps {
+		// Parse the function types and thier cap value into arrays
 		var (
 			mfs []func(float64) float64
 			cap []float64
 		)
+		// v : map["consequent"] -> cap value
+		// CAUTION: Traverse order uncertain
 		for key, value := range v {
-			// key TODO error "NS/ ZO"
-			mfs = append(mfs, MemberFuncWrapper(
+			// Getting the membreship function using key word
+			fn, err := MemberFuncWrapper(
 				fc.Outputs[i].Mf_list[key].Type,
-				fc.Outputs[i].Mf_list[key].Params),
-			)
+				fc.Outputs[i].Mf_list[key].Params)
+			if err != nil {
+				return err
+			}
+			// push function and correspoding cap value to arrays
+			mfs = append(mfs, fn)
 			cap = append(cap, value)
 		}
+		// Calculating the aggregation function
+		// **** !!!!Result might be incorrect!!!! ****
 		a, b, err := Aggr(
 			start[i], end[i], resolution[i],
 			mfs, cap,
@@ -246,6 +258,7 @@ func (fc *fuzzyController) Aggregation(start []float64, end []float64, resolutio
 		if err != nil {
 			log.Fatal(err)
 		}
+		// Saving the result to type properties
 		fc.aggX[i] = a
 		fc.aggY[i] = b
 	}
@@ -256,14 +269,34 @@ func (fc *fuzzyController) GetResult() []float64 {
 	ret := make([]float64, fc.System.Numoutputs)
 	for i := range fc.aggX {
 		defuzz := 0.
-		if fc.System.Defuzzmethod == "centroid" {
+
+		switch strings.ToLower(fc.System.Defuzzmethod) {
+		case "centroid":
 			cenPoint, err := Centroid(fc.aggX[i], fc.aggY[i])
 			if err != nil {
 				log.Fatal(err)
 			}
 			defuzz = cenPoint
-		} else if fc.System.Defuzzmethod == "bisector" {
+		case "bisector":
 			biPoint, err := Bisector(fc.aggX[i], fc.aggY[i])
+			if err != nil {
+				log.Fatal(err)
+			}
+			defuzz = biPoint
+		case "MOM":
+			biPoint, err := MOMdefuzz(fc.aggX[i], fc.aggY[i])
+			if err != nil {
+				log.Fatal(err)
+			}
+			defuzz = biPoint
+		case "SOM":
+			biPoint, err := SOMdefuzz(fc.aggX[i], fc.aggY[i])
+			if err != nil {
+				log.Fatal(err)
+			}
+			defuzz = biPoint
+		case "LOM":
+			biPoint, err := LOMdefuzz(fc.aggX[i], fc.aggY[i])
 			if err != nil {
 				log.Fatal(err)
 			}

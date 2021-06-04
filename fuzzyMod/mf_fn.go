@@ -202,7 +202,7 @@ func Zmf(x float64, params []float64) float64 {
 	return 1
 }
 
-// Calculating the membership for specific type of membership function.
+// !!Deprecated!!: Calculating the membership for specific type of membership function.
 //
 //	@Params: mf_type - a string describe the type/form of the
 //			 membership function.
@@ -236,5 +236,69 @@ func CalculateMf(mf_type string, params []float64, x float64) (float64, error) {
 		return Zmf(x, params), nil
 	default:
 		return 0., errors.New("unvalid member function name")
+	}
+}
+
+// Wrap a selected membership function into a standard function,
+// which takes a float64 value x as input and calculates and
+// returns the membership of the value x in type of float64.
+//
+//	@Params: mf_type - a string describe the type/form of the
+//			 membership function.
+//
+//			 params - the parameters for the membership function.
+//
+//	@Return: 1. - wrapped standard function with
+//					- Input: x value
+//					- Output: membership
+//			 2. - error occured during the calculation
+func MemberFuncWrapper(mf_type string, params []float64) (func(float64) float64, error) {
+	switch strings.ToLower(mf_type) {
+	case "dsigmf":
+		return func(x float64) float64 {
+			return Dsigmf(x, params)
+		}, nil
+	case "sigmf":
+		return func(x float64) float64 {
+			return Sigmf(x, params)
+		}, nil
+	case "gaussmf":
+		return func(x float64) float64 {
+			return Gaussmf(x, params)
+		}, nil
+	case "gauss2mf":
+		return func(x float64) float64 {
+			return Gauss2mf(x, params)
+		}, nil
+	case "gbellmf":
+		return func(x float64) float64 {
+			return Gbellmf(x, params)
+		}, nil
+	case "pimf":
+		return func(x float64) float64 {
+			return Pimf(x, params)
+		}, nil
+	case "psigmf":
+		return func(x float64) float64 {
+			return Psigmf(x, params)
+		}, nil
+	case "smf":
+		return func(x float64) float64 {
+			return Smf(x, params)
+		}, nil
+	case "trapmf":
+		return func(x float64) float64 {
+			return Trapmf(x, params)
+		}, nil
+	case "trimf":
+		return func(x float64) float64 {
+			return Trimf(x, params)
+		}, nil
+	case "zmf":
+		return func(x float64) float64 {
+			return Zmf(x, params)
+		}, nil
+	default:
+		return nil, errors.New("membership function doesn't")
 	}
 }
