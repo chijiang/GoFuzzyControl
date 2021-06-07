@@ -23,6 +23,7 @@ func aggr(
 		x []float64
 		y []float64
 	)
+	resolution = int(math.Min(math.Max(float64(resolution), 1), 10000000))
 	step_length := (end - start) / float64(resolution)
 	for i := start; i <= end; i += step_length {
 		x = append(x, i)

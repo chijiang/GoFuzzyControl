@@ -9,7 +9,7 @@ import (
 	"strings"
 )
 
-type fuzzyController struct {
+type FuzzyController struct {
 	System    config   `json:"system"`
 	Inputs    []member `json:"input"`
 	Outputs   []member `json:"output"`
@@ -59,10 +59,10 @@ type rule struct {
 // 	@Return: fuzzyController object with auto generated
 //			 output memebership function list and
 //			 and/or functions.
-func NewFuzzyController(jsonStr string) (fuzzyController, error) {
+func NewFuzzyController(jsonStr string) (FuzzyController, error) {
 
 	// Initializing the fuzzyController object.
-	var fc fuzzyController
+	var fc FuzzyController
 	json.Unmarshal([]byte(jsonStr), &fc)
 
 	// Return error if number of inputs/ outputs
@@ -128,7 +128,7 @@ func NewFuzzyController(jsonStr string) (fuzzyController, error) {
 //
 //	@Params: inputs - The input values in form of a float64
 // 			 array.
-func (fc *fuzzyController) SetInputs(inputs []float64) error {
+func (fc *FuzzyController) SetInputs(inputs []float64) error {
 	// Return error if the number of inputs doesn't match with
 	// the model setup.
 	if len(inputs) != fc.System.Numinputs {
@@ -139,6 +139,7 @@ func (fc *fuzzyController) SetInputs(inputs []float64) error {
 	}
 
 	// Calculate the membership for the input values.
+	fc.input_mbr = nil
 	for i, value := range inputs {
 		// Keep the input values inside the input range.
 		limit := fc.Inputs[i].Range
@@ -174,7 +175,7 @@ func (fc *fuzzyController) SetInputs(inputs []float64) error {
 //	@Params: resolution - the "step size" for x values of the curves
 //
 //	@Return: error occurred during the aggregation.
-func (fc *fuzzyController) AggregateMamdani(resolution []int) error {
+func (fc *FuzzyController) AggregateMamdani(resolution []int) error {
 	caps, err := fc.getCaps()
 	if err != nil {
 		return err
@@ -216,7 +217,7 @@ func (fc *fuzzyController) AggregateMamdani(resolution []int) error {
 	return nil
 }
 
-func (fc *fuzzyController) AggregateSugeno() error {
+func (fc *FuzzyController) AggregateSugeno() error {
 	caps, err := fc.getCaps()
 	if err != nil {
 		return err
@@ -252,7 +253,7 @@ func (fc *fuzzyController) AggregateSugeno() error {
 //			 resolution - the "step size" for x values of the curves
 //
 //	@Return: error occurred during the aggregation.
-func (fc *fuzzyController) GetResult() ([]float64, error) {
+func (fc *FuzzyController) GetResult() ([]float64, error) {
 	if fc.System.Method == "mamdani" {
 		ret := make([]float64, fc.System.Numoutputs)
 		for i := range fc.aggX {
@@ -301,7 +302,7 @@ func (fc *fuzzyController) GetResult() ([]float64, error) {
 	}
 }
 
-func (fc *fuzzyController) getCaps() ([]map[string]float64, error) {
+func (fc *FuzzyController) getCaps() ([]map[string]float64, error) {
 	// The container to store the cap value of the output membership.
 	caps := make([]map[string]float64, fc.System.Numoutputs)
 	// Initializing the elements in the array.

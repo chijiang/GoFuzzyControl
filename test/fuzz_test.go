@@ -1,49 +1,15 @@
-package main
+package test
 
 import (
 	fuzzy "fuzzy/fuzzyMod"
 	"io/ioutil"
 	"testing"
+	"time"
 )
 
-// func TestCentriodUnderLine(t *testing.T) {
-// 	// parameters of member function
-// 	zmfparams := []float64{-5, -3}
-// 	trapmfparams := []float64{-4, -1.5, 1.5, 4}
-// 	smfparams := []float64{3, 5}
-// 	// Member function list
-// 	var function_list []func(float64) float64
-// 	fn, err := fuzzy.MemberFuncWrapper("zmf", zmfparams)
-// 	if err != nil {
-// 		t.Fatal(err)
-// 	}
-// 	function_list = append(function_list, fn)
-// 	fn, err = fuzzy.MemberFuncWrapper("trapmf", trapmfparams)
-// 	if err != nil {
-// 		t.Fatal(err)
-// 	}
-// 	function_list = append(function_list, fn)
-// 	fn, err = fuzzy.MemberFuncWrapper("smf", smfparams)
-// 	if err != nil {
-// 		t.Fatal(err)
-// 	}
-// 	function_list = append(function_list, fn)
-// 	// Cap values
-// 	cap_values := []float64{1, 1, 1}
-// 	// Creating the total member function
-// 	x, y, err := fuzzy.Aggr(-6, 6, 100,
-// 		function_list, cap_values, "min", "max")
-// 	if err != nil {
-// 		t.Fatal(err)
-// 	}
-// 	ans, error := fuzzy.Centroid(x, y)
-// 	if error != nil {
-// 		t.Fatal(error)
-// 	}
-// 	fmt.Printf("middle point: %v\n", ans)
-// }
-
 func TestFullStep(t *testing.T) {
+	startTime := time.Now()
+
 	// 1. Creating model via json string
 	jsonByte, err := ioutil.ReadFile("./sugenoModel.json")
 	if err != nil {
@@ -74,6 +40,8 @@ func TestFullStep(t *testing.T) {
 	t.Log("result: ", rst)
 	// Got answer 5.3868, MATLAB gives answer 5.3866 -- Mamdani
 	// Got answer 9.71495, MATLAB gives answer 9.7149 -- Sugeno
+	elapsedTime := time.Since(startTime) / time.Millisecond // duration in ms
+	t.Logf("Finished in %dms", elapsedTime)
 }
 
 func TestDefuzz(t *testing.T) {

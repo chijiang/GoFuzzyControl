@@ -1,0 +1,165 @@
+{
+    "system": {
+        "name": "fuzzyModel",
+        "method": "mamdani",
+        "numInputs": 2,
+        "numOutputs": 1,
+        "numRules": 4,
+        "andMethod": "min",
+        "orMethod": "max",
+        "impMethod": "min",
+        "aggMethod": "max",
+        "defuzzMethod": "centroid"
+    },
+    "input": [
+        {
+            "name": "e",
+            "range": [
+                -30.0,
+                30.0
+            ],
+            "mf": [
+                {
+                    "label": "ZO",
+                    "type": "trimf",
+                    "params": [
+                        -10.0,
+                        0.0,
+                        10.0
+                    ]
+                },
+                {
+                    "label": "NS",
+                    "type": "trapmf",
+                    "params": [
+                        -5.0,
+                        5.5,
+                        10.2,
+                        15.0
+                    ]
+                },
+                {
+                    "label": "PS",
+                    "type": "smf",
+                    "params": [
+                        12.1,
+                        20.2
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "ec",
+            "range": [
+                -30.2,
+                30.5
+            ],
+            "mf": [
+                {
+                    "label": "ZO",
+                    "type": "trimf",
+                    "params": [
+                        -10.0,
+                        0.0,
+                        10.1
+                    ]
+                },
+                {
+                    "label": "NS",
+                    "type": "trapmf",
+                    "params": [
+                        -5.1,
+                        5.0,
+                        10.1,
+                        15.0
+                    ]
+                },
+                {
+                    "label": "PS",
+                    "type": "smf",
+                    "params": [
+                        12.2,
+                        20.1
+                    ]
+                }
+            ]
+        }
+    ],
+    "output": [
+        {
+            "name": "u",
+            "range": [-20, 20],
+            "mf": [
+                {
+                    "label": "ZO",
+                    "type": "trimf",
+                    "params": [
+                        -10.0,
+                        0.0,
+                        17.1
+                    ]
+                },
+                {
+                    "label": "NS",
+                    "type": "trapmf",
+                    "params": [
+                        -5.0,
+                        5.0,
+                        10.1,
+                        15.2
+                    ]
+                },
+                {
+                    "label": "PS",
+                    "type": "smf",
+                    "params": [
+                        12.2,
+                        20.1
+                    ]
+                }
+            ]
+        }
+    ],
+    "rules": [
+        {
+            "antecedent": [
+                "NS",
+                "ZO"
+            ],
+            "consequent": [
+                "PS"
+            ],
+            "conjunction": "and"
+        },
+        {
+            "antecedent": [
+                "ZO",
+                "ZO"
+            ],
+            "consequent": [
+                "ZO"
+            ],
+            "conjunction": "and"
+        },
+        {
+            "antecedent": [
+                "ZO",
+                "PS"
+            ],
+            "consequent": [
+                "NS"
+            ],
+            "conjunction": "and"
+        },
+        {
+            "antecedent": [
+                "PS",
+                "PS"
+            ],
+            "consequent": [
+                "NS"
+            ],
+            "conjunction": "and"
+        }
+    ]
+}
