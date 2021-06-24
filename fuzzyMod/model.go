@@ -4,9 +4,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log"
 	"math"
 	"strings"
+
+	log "github.com/sirupsen/logrus"
 )
 
 type FuzzyController struct {
@@ -356,10 +357,8 @@ func (fc *FuzzyController) getCaps() ([]map[string]float64, error) {
 			for i := range caps {
 				if _, ok := caps[i][r.Consequent[i]]; !ok {
 					caps[i][r.Consequent[i]] = res
-				} else if fc.System.Impmethod == "max" {
-					caps[i][r.Consequent[i]] = math.Max(caps[i][r.Consequent[i]], res)
 				} else {
-					caps[i][r.Consequent[i]] = math.Min(caps[i][r.Consequent[i]], res)
+					caps[i][r.Consequent[i]] = math.Max(caps[i][r.Consequent[i]], res)
 				}
 			}
 		}
