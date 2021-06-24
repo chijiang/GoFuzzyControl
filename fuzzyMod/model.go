@@ -4,9 +4,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log"
 	"math"
 	"strings"
+
+	log "github.com/sirupsen/logrus"
 )
 
 type FuzzyController struct {
