@@ -1,13 +1,12 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	fuzzy "fuzzy/fuzzyMod"
 	"io/ioutil"
 	"log"
 	"net/http"
-	"strconv"
-	"strings"
 
 	"github.com/gorilla/mux"
 )
@@ -32,8 +31,9 @@ func main() {
 		Handler: r,
 	}
 
+	go server.ListenAndServe()
 	log.Println("Server ready")
-	server.ListenAndServe()
+	select {}
 }
 
 func newRouter() *mux.Router {
@@ -55,36 +55,26 @@ func newController(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+type Inputs struct {
+	InputX     []float64 `json:"input_x"`
+	Resolution []int     `json:"resolution"`
+}
+
 func calculate(w http.ResponseWriter, r *http.Request) {
-	str, err := ioutil.ReadAll(r.Body)
+	info, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		log.Fatal(err)
+	}
+	var inputs Inputs
+	err = json.Unmarshal(info, &inputs)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	str_arr := strings.Split(string(str), ", ")
-	var value_arr []float64
-	for _, v := range str_arr {
-		value, err := strconv.ParseFloat(v, 64)
-		if err != nil {
-			log.Fatal(err)
-		}
-		value_arr = append(value_arr, value)
-	}
-
-	var resolution []int
-	fc.SetInputs(value_arr[:fc.System.Numinputs])
-	if fc.System.Numinputs+fc.System.Numoutputs == len(value_arr) {
-		for i := fc.System.Numinputs; i < len(value_arr); i++ {
-			resolution = append(resolution, int(value_arr[i]))
-		}
-	} else {
-		for i := 0; i < fc.System.Numoutputs; i++ {
-			resolution = append(resolution, 100)
-		}
-	}
+	fc.SetInputs(inputs.InputX)
 
 	if fc.System.Method == "mamdani" {
-		err = fc.AggregateMamdani(resolution)
+		err = fc.AggregateMamdani(inputs.Resolution)
 		if err != nil {
 			log.Fatal(err)
 		}
